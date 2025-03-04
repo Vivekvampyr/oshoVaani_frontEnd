@@ -1,3 +1,16 @@
+buildscript {
+    ext.kotlin_version = '2.1.10' // Change here
+    repositories {
+        google()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
 plugins {
     id "com.android.application"
     id "kotlin-android"
@@ -24,7 +37,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.oshovaani"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 34
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -64,4 +77,6 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    
+}
