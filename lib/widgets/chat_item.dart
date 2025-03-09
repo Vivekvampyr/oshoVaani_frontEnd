@@ -72,17 +72,19 @@ class ProfileContainer extends StatelessWidget {
         color: isMe
             ? Theme.of(context).colorScheme.secondary
             : Colors.grey.shade800,
-        borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(10),
-          topRight: const Radius.circular(10),
-          bottomLeft: Radius.circular(isMe ? 0 : 15),
-          bottomRight: Radius.circular(isMe ? 15 : 0),
-        ),
+        borderRadius: BorderRadius.circular(20),
+        // borderRadius: BorderRadius.only(
+        //   topLeft: const Radius.circular(10),
+        //   topRight: const Radius.circular(10),
+        //   bottomLeft: Radius.circular(isMe ? 0 : 15),
+        //   bottomRight: Radius.circular(isMe ? 15 : 0),
+        // ),
       ),
-      child: Icon(
-        // YOU CAN SET ICON HERE OF YOU AND OSHO //
-        isMe ? Icons.person : Icons.computer,
-        color: Theme.of(context).colorScheme.onSecondary,
+      child: CircleAvatar(
+        backgroundImage: AssetImage(
+          isMe ? 'assets/images/user.jpeg' : 'assets/images/osho.jpg',
+        ),
+        radius: 20, // Adjust size as needed
       ),
     );
   }

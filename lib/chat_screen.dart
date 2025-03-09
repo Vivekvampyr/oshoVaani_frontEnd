@@ -13,6 +13,7 @@ class ChatScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatHistory = ref.watch(chatHistoryProvider);
+    final chats = ref.watch(chatsProvider).reversed.toList();
 
     return Scaffold(
       appBar: const MyAppBar(),
@@ -31,17 +32,29 @@ class ChatScreen extends ConsumerWidget {
       body: Column(
         children: [
           Expanded(
-            child: Consumer(builder: (context, ref, child) {
-              final chats = ref.watch(chatsProvider).reversed.toList();
-              return ListView.builder(
-                reverse: true,
-                itemCount: chats.length,
-                itemBuilder: (context, index) => ChatItem(
-                  text: chats[index].message,
-                  isMe: chats[index].isMe,
-                ),
-              );
-            }),
+            child: chats.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        "Hello, Friend! What do you want to ask?",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    reverse: true,
+                    itemCount: chats.length,
+                    itemBuilder: (context, index) => ChatItem(
+                      text: chats[index].message,
+                      isMe: chats[index].isMe,
+                    ),
+                  ),
           ),
           const Padding(
             padding: EdgeInsets.all(12.0),
