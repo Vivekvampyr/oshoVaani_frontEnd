@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:oshovaani/chat_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatSidebar extends StatefulWidget {
   final List<String> chatHistory;
   final VoidCallback onNewChat;
   final Function(String) onSelectChat;
-  final Function(String) onDeleteChat; // Added delete function
+  final Function(String) onDeleteChat;
 
   const ChatSidebar({
     super.key,
@@ -22,7 +23,9 @@ class ChatSidebar extends StatefulWidget {
 
 class _ChatSidebarState extends State<ChatSidebar> {
   String _userName = "Guest";
+  String _userEmail = "No Email Set";
   String? _profileImagePath;
+  List<String> _chatHistory = [];
 
   @override
   void initState() {
@@ -30,12 +33,39 @@ class _ChatSidebarState extends State<ChatSidebar> {
     _loadUserData();
   }
 
-  // 🟢 Load User Data from SharedPreferences
+  // Load User Data (Username, Email, Profile Picture)
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userName = prefs.getString('userName') ?? "Guest";
+      _userEmail = prefs.getString('userEmail') ?? "No Email Set";
       _profileImagePath = prefs.getString('userProfile');
+      _chatHistory = prefs.getStringList('chatHistory') ?? [];
+    });
+  }
+
+  // Save Chat History
+  Future<void> _saveChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('chatHistory', _chatHistory);
+  }
+
+  // Start a New Chat
+  void _startNewChat() {
+    String newChatTitle = "New Chat";
+    String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    setState(() {
+      _chatHistory.insert(0, "$newChatTitle|$timestamp");
+      _saveChatHistory();
+    });
+  }
+
+  // Delete a Chat
+  void _deleteChat(String chatTitle) {
+    setState(() {
+      _chatHistory.remove(chatTitle);
+      _saveChatHistory();
+      widget.onDeleteChat(chatTitle);
     });
   }
 
@@ -43,14 +73,12 @@ class _ChatSidebarState extends State<ChatSidebar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final isDarkMode = theme.brightness == Brightness.dark;
 
     return Drawer(
       child: Column(
         children: [
-          // 🟢 User Profile Section
+          // 🚀 Updated Profile Section
           Container(
-            height: 160,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: colors.secondary,
@@ -61,23 +89,41 @@ class _ChatSidebarState extends State<ChatSidebar> {
             ),
             child: Row(
               children: [
+                // 📷 Profile Picture
                 CircleAvatar(
                   radius: 36,
                   backgroundImage:
                       _profileImagePath != null && _profileImagePath!.isNotEmpty
                           ? FileImage(File(_profileImagePath!))
-                          : const AssetImage('assets/default_avatar.png')
+                          : const AssetImage('assets/images/user.jpeg')
                               as ImageProvider,
                 ),
                 const SizedBox(width: 12),
+
+                // 📝 Username & Email Column
                 Expanded(
-                  child: Text(
-                    _userName,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: colors.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🏷 Username
+                      Text(
+                        _userName,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: colors.onPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      // 📧 Email
+                      Text(
+                        _userEmail,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onPrimary.withOpacity(0.8),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -85,75 +131,63 @@ class _ChatSidebarState extends State<ChatSidebar> {
           ),
 
           const SizedBox(height: 16),
-
-          // 🔹 Chat History Label
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Text(
               "Conversations",
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: isDarkMode
-                    ? colors.onPrimary.withOpacity(0.7)
-                    : Colors.black54,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
           ),
 
-          const SizedBox(height: 10),
-
-          // 🟡 Chat History List
           Expanded(
-            child: widget.chatHistory.isEmpty
-                ? Center(
-                    child: Text(
-                      "No conversations yet",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.onPrimary.withOpacity(0.6),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    itemCount: widget.chatHistory.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading:
-                            Icon(Icons.chat_rounded, color: colors.secondary),
-                        title: Text(
-                          widget.chatHistory[index],
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colors.onPrimary,
-                          ),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onTap: () =>
-                            widget.onSelectChat(widget.chatHistory[index]),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () =>
-                              widget.onDeleteChat(widget.chatHistory[index]),
-                        ),
-                      );
-                    },
+            child: ListView.builder(
+              itemCount: _chatHistory.length,
+              itemBuilder: (context, index) {
+                String chatTitle = _chatHistory[index].split('|').first;
+                return Dismissible(
+                  key: Key(chatTitle),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
                   ),
+                  onDismissed: (direction) {
+                    _deleteChat(chatTitle);
+                  },
+                  child: ListTile(
+                    leading: Icon(Icons.chat_rounded, color: colors.secondary),
+                    title: Text(
+                      chatTitle,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: colors.onPrimary),
+                    ),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ChatScreen()),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
 
           const Divider(),
 
-          // 🟠 Modern "New Chat" Button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
-              onPressed: widget.onNewChat,
+              onPressed: _startNewChat,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
+                    borderRadius: BorderRadius.circular(30)),
                 backgroundColor: colors.secondary,
                 elevation: 4,
               ),
@@ -165,10 +199,9 @@ class _ChatSidebarState extends State<ChatSidebar> {
                   Text(
                     "Start New Chat",
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: colors.onSecondary,
-                    ),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colors.onSecondary),
                   ),
                 ],
               ),

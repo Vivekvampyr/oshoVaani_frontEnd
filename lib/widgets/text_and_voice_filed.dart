@@ -48,6 +48,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
 
   Future<void> _createThreadIfNeeded() async {
     if (_threadId == null) {
+      print("❤ CREATE THREAD!!!!");
       final newThreadId = await _openAI.createThread();
       if (newThreadId != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -76,6 +77,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
             controller: _messageController,
             onChanged: (value) {
               setInputMode(value.isNotEmpty ? InputMode.text : InputMode.voice);
+              print("${value.toString()} this is input value");
             },
             cursorColor: Theme.of(context).colorScheme.onPrimary,
             decoration: InputDecoration(
@@ -101,6 +103,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
             if (message.isNotEmpty) {
               _messageController.clear();
               sendTextMessage(message);
+              print("😂 Button is working");
             }
           },
           sendVoiceMessage: sendVoiceMessage,
@@ -112,6 +115,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
   void setInputMode(InputMode inputMode) {
     setState(() {
       _inputMode = inputMode;
+      print("this is input $_inputMode");
     });
   }
 
@@ -129,17 +133,18 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
       final result = await voiceHandler.startListening();
       setListeningState(false);
 
-      if (result != null && result.isNotEmpty) {
+      if (result.isNotEmpty) {
         sendTextMessage(result);
       }
     }
   }
 
   void sendTextMessage(String message) async {
+    print("😒BUTTON IS WORKING HERE!!!");
     await _createThreadIfNeeded();
 
     if (_threadId == null) {
-      debugPrint("⚠️ No thread ID available, message cannot be sent");
+      print("⚠️ No thread ID available, message cannot be sent");
       return;
     }
 
@@ -150,13 +155,8 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
     try {
       final aiResponse = await _openAI.generateResponse(_threadId!, message);
       removeTyping();
-      print("🙂AI Response == ${aiResponse}");
-      if (aiResponse != null) {
-        addToChatList(aiResponse, false, DateTime.now().toString());
-      } else {
-        addToChatList(
-            "⚠️ Error: AI response was null", false, DateTime.now().toString());
-      }
+      print("🙂AI Response == $aiResponse");
+      addToChatList(aiResponse, false, DateTime.now().toString());
     } catch (e) {
       removeTyping();
       addToChatList(

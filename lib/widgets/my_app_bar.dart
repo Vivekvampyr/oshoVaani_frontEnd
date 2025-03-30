@@ -10,10 +10,11 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       title: Text(
-        "OshoVaani",
+        "OSHOवाणी",
         style: TextStyle(
           color: Theme.of(context).colorScheme.onPrimary,
           fontWeight: FontWeight.bold,
+          fontStyle: FontStyle.italic,
         ),
       ),
       centerTitle: true,

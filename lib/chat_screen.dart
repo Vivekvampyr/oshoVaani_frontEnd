@@ -36,14 +36,102 @@ class ChatScreen extends ConsumerWidget {
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        "Hello, Friend! What do you want to ask?",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Animated Wave Emoji for friendliness
+                          Text(
+                            "👋 Hey there, Explorer!",
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black87,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 10,
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.blueAccent.withOpacity(0.6)
+                                      : Colors.blueGrey.withOpacity(0.5),
+                                  offset: Offset(2, 3),
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+
+                          SizedBox(height: 10),
+
+                          // Subtext with glowing effect
+                          Text(
+                            "💡 What’s on your mind?",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.8,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey[300]
+                                  : Colors.grey[700],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+
+                          SizedBox(height: 20),
+
+                          // Floating Chat Bubble Animation
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.blueAccent.withValues(alpha: .7)
+                                      : Colors.blueGrey.withValues(alpha: .7),
+                                  blurRadius: 25,
+                                  spreadRadius: 2,
+                                  offset: Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.chat_bubble_rounded,
+                              size: 50,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.blueAccent
+                                  : Colors.blueGrey,
+                            ),
+                          ),
+
+                          SizedBox(height: 20),
+
+                          // Subtle Gradient Divider for Elegance
+                          Container(
+                            width: 80,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.blueAccent
+                                      : Colors.blueGrey,
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.cyanAccent
+                                      : Colors.lightBlueAccent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   )
