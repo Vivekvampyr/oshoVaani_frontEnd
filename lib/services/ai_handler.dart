@@ -16,7 +16,7 @@ class AIHandler {
     final lines = const LineSplitter().convert(correctedJsonString);
 
     for (var line in lines) {
-      print("😭 ${line}");
+      print("😭 $line");
       try {
         final data = json.decode(line);
         print("🩻 ${data['choices'][0]['message']['content']}");
@@ -34,16 +34,21 @@ class AIHandler {
   }
 
   Future<String> _getUserId() async {
+    print("USER ID IS CREATED");
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('username') ?? "guest";
   }
 
   Future<String?> createThread() async {
     String userId = await _getUserId();
-    final response =
-        await http.get(Uri.parse("$baseUrl/create_thread?user_id=$userId"));
+    print("CREATE THREAD IS WORKING");
+    final response = await http.get(Uri.parse(
+        "$baseUrl/create_thread?user_id=$userId")); //$baseUrl/create_thread?user_id=$userId
+    print(
+        "🐱‍🚀${response.body} ${response.statusCode} url${"$baseUrl/create_thread?user_id=$userId"}");
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+
       return data["thread_id"];
     }
     return null;
@@ -80,7 +85,7 @@ class AIHandler {
       "thread_id": threadId //threadId
     });
 
-    print("🤚${body}");
+    print("🤚$body");
     _responseBuffer.clear();
     final response = await http.post(
       Uri.parse("$baseUrl/generate"),

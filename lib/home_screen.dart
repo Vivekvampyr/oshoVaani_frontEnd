@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,9 +12,53 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   File? _image;
+  late AnimationController _animationController;
+  String? _emailError;
+  String? _passwordError;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat(reverse: true);
+
+    // Add listeners to clear errors when user types
+    _emailController.addListener(_clearEmailError);
+    _passwordController.addListener(_clearPasswordError);
+  }
+
+  void _clearEmailError() {
+    if (_emailError != null) {
+      setState(() {
+        _emailError = null;
+      });
+    }
+  }
+
+  void _clearPasswordError() {
+    if (_passwordError != null) {
+      setState(() {
+        _passwordError = null;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     final pickedFile =
@@ -26,8 +71,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _saveUserInfo() async {
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+    });
+
+    bool isValid = true;
+
+    // Validate email
+    if (!_isValidEmail(_emailController.text)) {
+      setState(() {
+        _emailError =
+            'Please enter a valid email address (e.g., abc@example.com)';
+      });
+      isValid = false;
+    }
+
+    // Validate password
+    if (!_isValidPassword(_passwordController.text)) {
+      setState(() {
+        _passwordError = 'Password must be at least 8 characters long';
+      });
+      isValid = false;
+    }
+
+    if (!isValid) return;
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', _nameController.text);
+    await prefs.setString('userEmail', _emailController.text);
+    await prefs.setString('userPassword', _passwordController.text);
     if (_image != null) {
       await prefs.setString('userProfile', _image!.path);
     }
@@ -37,57 +110,230 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool _isValidEmail(String email) {
+    final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegExp.hasMatch(email);
+  }
+
+  bool _isValidPassword(String password) {
+    return password.length >= 8;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              "OshoVaani",
-              style: TextStyle(
-                fontSize: 50,
-                fontWeight: FontWeight.bold,
+      body: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.secondary,
+                      Colors.black,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    stops: [
+                      0.3 + 0.2 * _animationController.value,
+                      0.7 - 0.2 * _animationController.value,
+                    ],
+                  ),
+                ),
               ),
-            ),
-            Text(
-              "Ollama based LLM Fine-Tuned by LoRa",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(color: Colors.black.withOpacity(0.2)),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _image != null ? FileImage(_image!) : null,
-                child: _image == null
-                    ? const Icon(Icons.add_a_photo,
-                        size: 40, color: Colors.grey)
-                    : null,
+              Center(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "OSHOवाणी",
+                          style: TextStyle(
+                            fontSize: 45,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          "Ollama based LLM Fine-Tuned by LoRa",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.white70,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: CircleAvatar(
+                            radius: 55,
+                            backgroundColor: Colors.white24,
+                            backgroundImage:
+                                _image != null ? FileImage(_image!) : null,
+                            child: _image == null
+                                ? const Icon(Icons.add_a_photo,
+                                    size: 40, color: Colors.white)
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              )
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              TextField(
+                                controller: _nameController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: "Enter your name",
+                                  labelStyle:
+                                      const TextStyle(color: Colors.white70),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide:
+                                        const BorderSide(color: Colors.white70),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _emailController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: "Enter your email",
+                                  labelStyle:
+                                      const TextStyle(color: Colors.white70),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide:
+                                        const BorderSide(color: Colors.white70),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                        color: Colors.redAccent),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                        color: Colors.redAccent),
+                                  ),
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              if (_emailError != null)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(top: 4, left: 12),
+                                  child: Text(
+                                    _emailError!,
+                                    style: const TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _passwordController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  labelText: "Enter your password",
+                                  labelStyle:
+                                      const TextStyle(color: Colors.white70),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide:
+                                        const BorderSide(color: Colors.white70),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                        color: Colors.redAccent),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                        color: Colors.redAccent),
+                                  ),
+                                ),
+                                obscureText: true,
+                              ),
+                              if (_passwordError != null)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.only(top: 4, left: 12),
+                                    child: Text(
+                                      _passwordError!,
+                                      style: const TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.secondary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    elevation: 5,
+                                  ),
+                                  onPressed: _saveUserInfo,
+                                  child: const Text(
+                                    "Get Started",
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: "Enter your name",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _saveUserInfo,
-              child: const Text("Get Started"),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }

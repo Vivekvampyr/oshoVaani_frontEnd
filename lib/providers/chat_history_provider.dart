@@ -1,38 +1,118 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:oshovaani/models/chat_model.dart';
 
 final chatHistoryProvider =
-    StateNotifierProvider<ChatHistoryNotifier, List<String>>((ref) {
+    StateNotifierProvider<ChatHistoryNotifier, Map<String, List<ChatModel>>>(
+        (ref) {
   return ChatHistoryNotifier();
 });
 
-class ChatHistoryNotifier extends StateNotifier<List<String>> {
-  ChatHistoryNotifier() : super([]) {
+class ChatHistoryNotifier extends StateNotifier<Map<String, List<ChatModel>>> {
+  ChatHistoryNotifier() : super({}) {
     _loadChatHistory();
   }
 
+  final Map<String, String> _chatTitles = {};
+
   Future<void> _loadChatHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    state = prefs.getStringList('chatHistory') ?? [];
+    final chatHistoryJson = prefs.getString('chatHistory');
+    final chatTitlesJson = prefs.getString('chatTitles');
+
+    if (chatTitlesJson != null) {
+      final Map<String, dynamic> decodedTitles = json.decode(chatTitlesJson);
+      _chatTitles.addAll(Map<String, String>.from(decodedTitles));
+    }
+
+    if (chatHistoryJson != null) {
+      final Map<String, dynamic> decoded = json.decode(chatHistoryJson);
+      final Map<String, List<ChatModel>> loadedChats = {};
+
+      decoded.forEach((chatId, messages) {
+        loadedChats[chatId] =
+            (messages as List).map((msg) => ChatModel.fromJson(msg)).toList();
+      });
+
+      state = loadedChats;
+    }
   }
 
-  Future<void> addChat(String chatTitle) async {
-    final updatedChats = [chatTitle, ...state];
-    state = updatedChats;
+  Future<void> _saveChatHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('chatHistory', updatedChats);
+    final Map<String, List<Map<String, dynamic>>> encodedChats = {};
+
+    state.forEach((chatId, messages) {
+      encodedChats[chatId] = messages.map((msg) => msg.toJson()).toList();
+    });
+
+    await prefs.setString('chatHistory', json.encode(encodedChats));
+    await prefs.setString('chatTitles', json.encode(_chatTitles));
   }
 
-  Future<void> deleteChat(String chatTitle) async {
-    final updatedChats = state.where((chat) => chat != chatTitle).toList();
-    state = updatedChats;
+  String getChatTitle(String chatId) {
+    return _chatTitles[chatId] ?? "New Chat";
+  }
+
+  Future<void> setLastSelectedChat(String chatId) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('chatHistory', updatedChats);
+    await prefs.setString('lastSelectedChat', chatId);
+  }
+
+  Future<String?> getLastSelectedChat() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('lastSelectedChat');
+  }
+
+  Future<void> addChat(String title) async {
+    final String chatId = DateTime.now().millisecondsSinceEpoch.toString();
+    final updatedChats = Map<String, List<ChatModel>>.from(state);
+    updatedChats[chatId] = [];
+    _chatTitles[chatId] = title;
+    state = updatedChats;
+    await _saveChatHistory();
+    await setLastSelectedChat(chatId);
+  }
+
+  Future<void> deleteChat(String chatId) async {
+    final updatedChats = Map<String, List<ChatModel>>.from(state);
+    updatedChats.remove(chatId);
+    _chatTitles.remove(chatId);
+    state = updatedChats;
+    await _saveChatHistory();
+
+    // If we deleted the last selected chat, select the most recent one
+    final lastSelected = await getLastSelectedChat();
+    if (lastSelected == chatId && updatedChats.isNotEmpty) {
+      await setLastSelectedChat(updatedChats.keys.first);
+    }
+  }
+
+  Future<void> renameChat(String chatId, String newTitle) async {
+    if (state.containsKey(chatId)) {
+      _chatTitles[chatId] = newTitle;
+      // Create a new state to trigger UI update
+      final updatedChats = Map<String, List<ChatModel>>.from(state);
+      state = updatedChats;
+      await _saveChatHistory();
+    }
+  }
+
+  Future<void> addMessage(String chatId, ChatModel message) async {
+    final updatedChats = Map<String, List<ChatModel>>.from(state);
+    if (updatedChats.containsKey(chatId)) {
+      updatedChats[chatId] = [...updatedChats[chatId]!, message];
+      state = updatedChats;
+      await _saveChatHistory();
+    }
   }
 
   Future<void> clearChats() async {
-    state = [];
+    state = {};
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('chatHistory');
+    await prefs.remove('chatTitles');
+    await prefs.remove('lastSelectedChat');
   }
 }

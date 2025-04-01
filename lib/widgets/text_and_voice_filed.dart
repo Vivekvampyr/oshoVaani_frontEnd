@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oshovaani/models/chat_model.dart';
-import 'package:oshovaani/providers/chats_provider.dart';
+import 'package:oshovaani/providers/chat_history_provider.dart';
 import 'package:oshovaani/services/ai_handler.dart';
 import 'package:oshovaani/services/voice_handler.dart';
 import 'package:oshovaani/widgets/send_button.dart';
@@ -13,7 +13,14 @@ enum InputMode {
 }
 
 class TextAndVoiceField extends ConsumerStatefulWidget {
-  const TextAndVoiceField({super.key});
+  final Function(String) onMessageSent;
+  final String chatId;
+
+  const TextAndVoiceField({
+    super.key,
+    required this.onMessageSent,
+    required this.chatId,
+  });
 
   @override
   ConsumerState<TextAndVoiceField> createState() => _TextAndVoiceFieldState();
@@ -48,6 +55,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
 
   Future<void> _createThreadIfNeeded() async {
     if (_threadId == null) {
+      print("❤ CREATE THREAD!!!!");
       final newThreadId = await _openAI.createThread();
       if (newThreadId != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -76,6 +84,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
             controller: _messageController,
             onChanged: (value) {
               setInputMode(value.isNotEmpty ? InputMode.text : InputMode.voice);
+              print("${value.toString()} this is input value");
             },
             cursorColor: Theme.of(context).colorScheme.onPrimary,
             decoration: InputDecoration(
@@ -101,6 +110,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
             if (message.isNotEmpty) {
               _messageController.clear();
               sendTextMessage(message);
+              print("😂 Button is working");
             }
           },
           sendVoiceMessage: sendVoiceMessage,
@@ -112,6 +122,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
   void setInputMode(InputMode inputMode) {
     setState(() {
       _inputMode = inputMode;
+      print("this is input $_inputMode");
     });
   }
 
@@ -129,41 +140,67 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
       final result = await voiceHandler.startListening();
       setListeningState(false);
 
-      if (result != null && result.isNotEmpty) {
+      if (result.isNotEmpty) {
         sendTextMessage(result);
       }
     }
   }
 
   void sendTextMessage(String message) async {
+    print("😒BUTTON IS WORKING HERE!!!");
     await _createThreadIfNeeded();
 
     if (_threadId == null) {
-      debugPrint("⚠️ No thread ID available, message cannot be sent");
+      print("⚠️ No thread ID available, message cannot be sent");
       return;
     }
 
     setReplyingState(true);
-    addToChatList(message, true, DateTime.now().toString());
-    addToChatList('Typing...', false, 'typing');
+
+    // Add user message
+    ref.read(chatHistoryProvider.notifier).addMessage(
+          widget.chatId,
+          ChatModel(
+            id: DateTime.now().toString(),
+            message: message,
+            isMe: true,
+            chatId: widget.chatId,
+            title: "New Chat",
+          ),
+        );
 
     try {
       final aiResponse = await _openAI.generateResponse(_threadId!, message);
-      removeTyping();
-      print("🙂AI Response == ${aiResponse}");
-      if (aiResponse != null) {
-        addToChatList(aiResponse, false, DateTime.now().toString());
-      } else {
-        addToChatList(
-            "⚠️ Error: AI response was null", false, DateTime.now().toString());
-      }
+      print("🙂AI Response == $aiResponse");
+
+      // Add AI response
+      ref.read(chatHistoryProvider.notifier).addMessage(
+            widget.chatId,
+            ChatModel(
+              id: DateTime.now().toString(),
+              message: aiResponse,
+              isMe: false,
+              chatId: widget.chatId,
+              title: "New Chat",
+            ),
+          );
     } catch (e) {
-      removeTyping();
-      addToChatList(
-          "⚠️ Error: Failed to get response", false, DateTime.now().toString());
+      // Add error message
+      ref.read(chatHistoryProvider.notifier).addMessage(
+            widget.chatId,
+            ChatModel(
+              id: DateTime.now().toString(),
+              message: "⚠️ Error: Failed to get response",
+              isMe: false,
+              chatId: widget.chatId,
+              title: "New Chat",
+            ),
+          );
       debugPrint("❌ AI Response Error: $e");
     } finally {
       setReplyingState(false);
+      _messageController.clear();
+      setInputMode(InputMode.voice);
     }
   }
 
@@ -177,29 +214,5 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
     setState(() {
       _isListening = isListening;
     });
-  }
-
-  void removeTyping() {
-    ref.read(chatsProvider.notifier).removeTyping();
-  }
-
-  void addToChatList(dynamic message, bool isMe, String id) {
-    final chats = ref.read(chatsProvider.notifier);
-    String messageText;
-
-    if (message is String) {
-      messageText = message;
-    } else if (message is Map<String, dynamic>) {
-      messageText = message['choices']?[0]['message']?['content'] ??
-          '⚠️ Error: Invalid AI response';
-    } else {
-      messageText = '⚠️ Error: Unexpected response format';
-    }
-
-    chats.add(ChatModel(
-      id: id,
-      message: messageText,
-      isMe: isMe,
-    ));
   }
 }
