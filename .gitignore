@@ -187,5 +187,7 @@ ios/
 macos/
 linux/
 web/
+windows/
+test/
 
 
