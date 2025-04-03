@@ -180,3 +180,12 @@ dist/
 # System Files
 .DS_Store
 Thumbs.db 
+
+# Others
+android/
+ios/
+macos/
+linux/
+web/
+
+
