@@ -5,7 +5,6 @@ import 'package:oshovaani/widgets/chat_item.dart';
 import 'package:oshovaani/widgets/chat_sidebar.dart';
 import 'package:oshovaani/widgets/my_app_bar.dart';
 import 'package:oshovaani/widgets/text_and_voice_filed.dart';
-import 'package:oshovaani/models/chat_model.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String? initialChatId;

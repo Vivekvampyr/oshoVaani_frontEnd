@@ -3,7 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'chat_screen.dart';
+import 'services/ai_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,10 +19,13 @@ class _HomeScreenState extends State<HomeScreen>
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final AIHandler _aiHandler = AIHandler();
   File? _image;
   late AnimationController _animationController;
   String? _emailError;
   String? _passwordError;
+  bool _isLoading = false;
+  bool _isLoginMode = true;
 
   @override
   void initState() {
@@ -70,10 +75,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _saveUserInfo() async {
+  Future<void> _handleAuth() async {
     setState(() {
       _emailError = null;
       _passwordError = null;
+      _isLoading = true;
     });
 
     bool isValid = true;
@@ -81,8 +87,7 @@ class _HomeScreenState extends State<HomeScreen>
     // Validate email
     if (!_isValidEmail(_emailController.text)) {
       setState(() {
-        _emailError =
-            'Please enter a valid email address (e.g., abc@example.com)';
+        _emailError = 'Please enter a valid email address';
       });
       isValid = false;
     }
@@ -95,19 +100,113 @@ class _HomeScreenState extends State<HomeScreen>
       isValid = false;
     }
 
-    if (!isValid) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userName', _nameController.text);
-    await prefs.setString('userEmail', _emailController.text);
-    await prefs.setString('userPassword', _passwordController.text);
-    if (_image != null) {
-      await prefs.setString('userProfile', _image!.path);
+    if (!isValid) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
     }
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const ChatScreen()),
-    );
+
+    try {
+      bool success;
+      if (_isLoginMode) {
+        success = await _aiHandler.login(
+          _emailController.text,
+          _passwordController.text,
+        );
+      } else {
+        success = await _aiHandler.signUp(
+          _emailController.text,
+          _passwordController.text,
+        );
+        if (success) {
+          success = await _aiHandler.login(
+            _emailController.text,
+            _passwordController.text,
+          );
+        }
+      }
+
+      if (success) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userName', _nameController.text);
+        await prefs.setString('userEmail', _emailController.text);
+        await prefs.setString('userPassword', _passwordController.text);
+        if (_image != null) {
+          await prefs.setString('userProfile', _image!.path);
+        }
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatScreen()),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isLoginMode
+                  ? 'Login failed. Please check your credentials.'
+                  : 'Signup failed. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleSocialLogin(Future<bool> Function() loginFunction) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await loginFunction();
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ChatScreen()),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login failed. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   bool _isValidEmail(String email) {
@@ -207,21 +306,22 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           child: Column(
                             children: [
-                              TextField(
-                                controller: _nameController,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  labelText: "Enter your name",
-                                  labelStyle:
-                                      const TextStyle(color: Colors.white70),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide:
-                                        const BorderSide(color: Colors.white70),
+                              if (!_isLoginMode)
+                                TextField(
+                                  controller: _nameController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    labelText: "Enter your name",
+                                    labelStyle:
+                                        const TextStyle(color: Colors.white70),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(
+                                          color: Colors.white70),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
+                              if (!_isLoginMode) const SizedBox(height: 10),
                               TextField(
                                 controller: _emailController,
                                 style: const TextStyle(color: Colors.white),
@@ -313,15 +413,72 @@ class _HomeScreenState extends State<HomeScreen>
                                     ),
                                     elevation: 5,
                                   ),
-                                  onPressed: _saveUserInfo,
-                                  child: const Text(
-                                    "Get Started",
-                                    style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white),
-                                  ),
+                                  onPressed: _isLoading ? null : _handleAuth,
+                                  child: _isLoading
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white,
+                                        )
+                                      : Text(
+                                          _isLoginMode ? "Login" : "Sign Up",
+                                          style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white),
+                                        ),
                                 ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _isLoginMode = !_isLoginMode;
+                                        });
+                                      },
+                                child: Text(
+                                  _isLoginMode
+                                      ? "Don't have an account? Sign Up"
+                                      : "Already have an account? Login",
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                "Or continue with",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _buildSocialLoginButton(
+                                    context,
+                                    icon: Icons.g_mobiledata,
+                                    label: "Google",
+                                    onPressed: () {
+                                      _handleSocialLogin(
+                                        _aiHandler.loginWithGoogle,
+                                      );
+
+                                      // launchUrl(Uri.parse(
+                                      //     "https://8001-idx-ai-chatbot-1741200952471.cluster-a3grjzek65cxex762e4mwrzl46.cloudworkstations.dev/auth/login/google"));
+                                    },
+                                  ),
+                                  _buildSocialLoginButton(
+                                    context,
+                                    icon: Icons.code,
+                                    label: "Github",
+                                    onPressed: () => _handleSocialLogin(
+                                      _aiHandler.loginWithGithub,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -334,6 +491,27 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSocialLoginButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: _isLoading ? null : onPressed,
+      icon: Icon(icon),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white.withOpacity(0.1),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
   }

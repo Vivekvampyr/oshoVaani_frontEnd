@@ -166,6 +166,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
             isMe: true,
             chatId: widget.chatId,
             title: "New Chat",
+            timestamp: DateTime.now(),
           ),
         );
 
@@ -182,6 +183,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
               isMe: false,
               chatId: widget.chatId,
               title: "New Chat",
+              timestamp: DateTime.now(),
             ),
           );
     } catch (e) {
@@ -194,6 +196,7 @@ class _TextAndVoiceFieldState extends ConsumerState<TextAndVoiceField> {
               isMe: false,
               chatId: widget.chatId,
               title: "New Chat",
+              timestamp: DateTime.now(),
             ),
           );
       debugPrint("❌ AI Response Error: $e");

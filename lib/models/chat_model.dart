@@ -7,6 +7,7 @@ class ChatModel {
   final bool isMe;
   final String chatId;
   final String title;
+  final DateTime timestamp;
 
   const ChatModel({
     required this.id,
@@ -14,6 +15,7 @@ class ChatModel {
     required this.isMe,
     required this.chatId,
     required this.title,
+    required this.timestamp,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +25,7 @@ class ChatModel {
       'isMe': isMe,
       'chatId': chatId,
       'title': title,
+      'timestamp': timestamp.millisecondsSinceEpoch,
     };
   }
 
@@ -33,6 +36,7 @@ class ChatModel {
       isMe: json['isMe'],
       chatId: json['chatId'],
       title: json['title'],
+      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp']),
     );
   }
 }

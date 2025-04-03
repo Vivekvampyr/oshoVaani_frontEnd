@@ -108,11 +108,21 @@ class ChatHistoryNotifier extends StateNotifier<Map<String, List<ChatModel>>> {
     }
   }
 
-  Future<void> clearChats() async {
+  Future<void> clearAllChats() async {
     state = {};
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('chatHistory');
     await prefs.remove('chatTitles');
     await prefs.remove('lastSelectedChat');
+  }
+
+  Future<void> removeMessage(String chatId, String messageId) async {
+    if (state.containsKey(chatId)) {
+      final updatedChats = Map<String, List<ChatModel>>.from(state);
+      updatedChats[chatId] =
+          updatedChats[chatId]!.where((msg) => msg.id != messageId).toList();
+      state = updatedChats;
+      await _saveChatHistory();
+    }
   }
 }
